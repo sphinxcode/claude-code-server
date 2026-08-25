@@ -1,5 +1,7 @@
+import * as cookie from "cookie"
+import type { Request } from "express"
 import proxyServer from "http-proxy"
-import { HttpCode } from "../common/http"
+import { getCookieSessionName, HttpCode } from "../common/http"
 
 export const proxy = proxyServer.createProxyServer({})
 
@@ -15,6 +17,33 @@ proxy.on("error", (error, _, res) => {
     res.end(error.message)
   } else {
     res.end(`HTTP/1.1 ${HttpCode.ServerError} ${error.message}\r\n\r\n`)
+  }
+})
+
+function identity<T>(val: T): T {
+  return val
+}
+
+// Strip the code-server cookie if it exists to avoid transmitting the cookie
+// to potentially malicious local ports.
+proxy.on("proxyReq", (preq, req) => {
+  if (req.headers.cookie) {
+    const cookieSessionName = getCookieSessionName((req as Request).args["cookie-suffix"])
+    // Encoding and decoding are no-ops; we just want to remove the token
+    // without changing anything else about the cookies because not all
+    // applications encode/decode the same way `cookie` here does.
+    preq.setHeader(
+      "Cookie",
+      cookie.stringifyCookie(
+        {
+          ...cookie.parseCookie(req.headers.cookie, { decode: identity }),
+          [cookieSessionName]: undefined,
+        },
+        {
+          encode: identity,
+        },
+      ),
+    )
   }
 })
 

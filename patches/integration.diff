@@ -172,7 +172,7 @@ Index: code-server/lib/vscode/src/vs/workbench/browser/web.main.ts
  import { IProgressService } from '../../platform/progress/common/progress.js';
  import { DelayedLogChannel } from '../services/output/common/delayedLogChannel.js';
  import { dirname, joinPath } from '../../base/common/resources.js';
-@@ -133,6 +134,9 @@ export class BrowserMain extends Disposa
+@@ -140,6 +141,9 @@ export class BrowserMain extends Disposa
  		// Startup
  		const instantiationService = workbench.startup();
  
@@ -186,8 +186,8 @@ Index: code-server/lib/vscode/src/vs/base/common/product.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/base/common/product.ts
 +++ code-server/lib/vscode/src/vs/base/common/product.ts
-@@ -65,6 +65,8 @@ export type ExtensionVirtualWorkspaceSup
- };
+@@ -97,6 +97,8 @@ export interface IDictationRuntimeProduc
+ }
  
  export interface IProductConfiguration {
 +	readonly codeServerVersion?: string
@@ -251,19 +251,19 @@ Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/server/node/webClientServer.ts
 +++ code-server/lib/vscode/src/vs/server/node/webClientServer.ts
-@@ -333,6 +333,7 @@ export class WebClientServer {
+@@ -350,6 +350,7 @@ export class WebClientServer {
  		} : undefined;
  
  		const productConfiguration: Partial<Mutable<IProductConfiguration>> = {
 +			codeServerVersion: this._productService.codeServerVersion,
  			embedderIdentifier: 'server-distro',
+ 			voiceWsUrl: this._productService.voiceWsUrl,
  			extensionsGallery: this._webExtensionResourceUrlTemplate && this._productService.extensionsGallery ? {
- 				...this._productService.extensionsGallery,
 Index: code-server/lib/vscode/src/server-main.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/server-main.ts
 +++ code-server/lib/vscode/src/server-main.ts
-@@ -22,6 +22,9 @@ import { IServerAPI } from './vs/server/
+@@ -23,6 +23,9 @@ import { IServerAPI } from './vs/server/
  perf.mark('code/server/start');
  (globalThis as { vscodeServerStartTime?: number }).vscodeServerStartTime = performance.now();
  
@@ -273,7 +273,16 @@ Index: code-server/lib/vscode/src/server-main.ts
  // Do a quick parse to determine if a server or the cli needs to be started
  const parsedArgs = minimist(process.argv.slice(2), {
  	boolean: ['start-server', 'list-extensions', 'print-ip-address', 'help', 'version', 'accept-server-license-terms', 'update-extensions'],
-@@ -150,6 +153,7 @@ if (shouldSpawnCli) {
+@@ -50,7 +53,7 @@ if (shouldSpawnCli) {
+ 		mod.spawnCli();
+ 	});
+ } else {
+-	installServerProcessExitDiagnostics();
++	installServerProcessExitDiagnostics(parsedArgs);
+ 
+ 	let _remoteExtensionHostAgentServer: IServerAPI | null = null;
+ 	let _remoteExtensionHostAgentServerPromise: Promise<IServerAPI> | null = null;
+@@ -153,6 +156,7 @@ if (shouldSpawnCli) {
  		}
  	});
  }
@@ -281,7 +290,16 @@ Index: code-server/lib/vscode/src/server-main.ts
  
  function sanitizeStringArg(val: unknown): string | undefined {
  	if (Array.isArray(val)) { // if an argument is passed multiple times, minimist creates an array
-@@ -283,3 +287,22 @@ function prompt(question: string): Promi
+@@ -173,7 +177,7 @@ function sanitizeStringArg(val: unknown)
+  * provided) so they survive process teardown (an async stdio write from an
+  * `exit` handler does not).
+  */
+-function installServerProcessExitDiagnostics(): void {
++function installServerProcessExitDiagnostics(parsedArgs: minimist.ParsedArgs): void {
+ 	if (!process.env['VSCODE_SERVER_EXIT_DIAGNOSTICS']) {
+ 		return;
+ 	}
+@@ -406,3 +410,22 @@ function prompt(question: string): Promi
  		});
  	});
  }
@@ -304,11 +322,11 @@ Index: code-server/lib/vscode/src/server-main.ts
 +if (!process.env.CODE_SERVER_PARENT_PID) {
 +	start();
 +}
-Index: code-server/lib/vscode/src/vs/platform/dialogs/browser/dialog.ts
+Index: code-server/lib/vscode/src/vs/workbench/browser/parts/dialogs/dialog.ts
 ===================================================================
---- code-server.orig/lib/vscode/src/vs/platform/dialogs/browser/dialog.ts
-+++ code-server/lib/vscode/src/vs/platform/dialogs/browser/dialog.ts
-@@ -45,8 +45,11 @@ export function createWorkbenchDialogOpt
+--- code-server.orig/lib/vscode/src/vs/workbench/browser/parts/dialogs/dialog.ts
++++ code-server/lib/vscode/src/vs/workbench/browser/parts/dialogs/dialog.ts
+@@ -54,8 +54,11 @@ export function createWorkbenchDialogOpt
  
  export function createBrowserAboutDialogDetails(productService: IProductService): { title: string; details: string; detailsToCopy: string } {
  	const detailString = (useAgo: boolean): string => {

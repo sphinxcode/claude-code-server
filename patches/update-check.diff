@@ -93,7 +93,7 @@ Index: code-server/lib/vscode/src/vs/base/common/product.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/base/common/product.ts
 +++ code-server/lib/vscode/src/vs/base/common/product.ts
-@@ -67,6 +67,7 @@ export type ExtensionVirtualWorkspaceSup
+@@ -99,6 +99,7 @@ export interface IDictationRuntimeProduc
  export interface IProductConfiguration {
  	readonly codeServerVersion?: string
  	readonly rootEndpoint?: string
@@ -101,26 +101,26 @@ Index: code-server/lib/vscode/src/vs/base/common/product.ts
  
  	readonly version: string;
  	readonly date?: string;
-@@ -113,6 +114,7 @@ export interface IProductConfiguration {
+@@ -151,6 +152,7 @@ export interface IProductConfiguration {
  		readonly resourceUrlTemplate: string;
  		readonly nlsBaseUrl: string;
  		readonly accessSKUs?: string[];
 +		readonly authorizationHeaderToken?: string;
  	};
  
- 	readonly mcpGallery?: {
+ 	readonly agentSdks?: { readonly [packageId: string]: IAgentSdkProductConfig };
 Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/server/node/webClientServer.ts
 +++ code-server/lib/vscode/src/vs/server/node/webClientServer.ts
-@@ -340,6 +340,7 @@ export class WebClientServer {
+@@ -357,6 +357,7 @@ export class WebClientServer {
  		const productConfiguration: Partial<Mutable<IProductConfiguration>> = {
  			codeServerVersion: this._productService.codeServerVersion,
  			rootEndpoint: rootBase,
 +			updateEndpoint: !this._environmentService.args['disable-update-check'] ? rootBase + '/update/check' : undefined,
  			embedderIdentifier: 'server-distro',
+ 			voiceWsUrl: this._productService.voiceWsUrl,
  			extensionsGallery: this._productService.extensionsGallery,
- 		};
 Index: code-server/lib/vscode/src/vs/server/node/serverEnvironmentService.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/server/node/serverEnvironmentService.ts
@@ -134,7 +134,7 @@ Index: code-server/lib/vscode/src/vs/server/node/serverEnvironmentService.ts
  
  	/* ----- server setup ----- */
  
-@@ -101,6 +103,8 @@ export const serverOptions: OptionDescri
+@@ -108,6 +110,8 @@ export const serverOptions: OptionDescri
  };
  
  export interface ServerParsedArgs {

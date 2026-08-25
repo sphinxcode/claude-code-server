@@ -9,7 +9,6 @@
   - [Version updates to Code](#version-updates-to-code)
   - [Patching Code](#patching-code)
   - [Build](#build)
-    - [Creating a Standalone Release](#creating-a-standalone-release)
   - [Troubleshooting](#troubleshooting)
     - [I see "Forbidden access" when I load code-server in the browser](#i-see-forbidden-access-when-i-load-code-server-in-the-browser)
     - ["Can only have one anonymous define call per script"](#can-only-have-one-anonymous-define-call-per-script)
@@ -32,7 +31,7 @@ The prerequisites for contributing to code-server are almost the same as those
 for [VS Code](https://github.com/Microsoft/vscode/wiki/How-to-Contribute#prerequisites).
 Here is what is needed:
 
-- `node` v22.x
+- `node` v24.x
 - `git` v2.x or greater
 - [`git-lfs`](https://git-lfs.github.com)
 - [`npm`](https://www.npmjs.com/)
@@ -94,17 +93,20 @@ commits first if you are doing this).
 
 ### Version updates to Code
 
-1. Remove any patches with `quilt pop -a`.
-2. Update the `lib/vscode` submodule to the desired upstream version branch.
-   1. `cd lib/vscode && git checkout release/1.66 && cd ../..`
-   2. `git add lib && git commit -m "chore: update to Code <version>"`
-3. Apply the patches one at a time (`quilt push`). If the application succeeds
-   but the lines changed, update the patch with `quilt refresh`. If there are
-   conflicts, then force apply with `quilt push -f`, manually add back the
-   rejected code, then run `quilt refresh`.
-4. From the code-server **project root**, run `npm install`.
-5. Check the Node.js version that's used by Electron (which is shipped with VS
-   Code. If necessary, update our version of Node.js to match.
+PRs will be automatically created with updates to VS Code. If a patch cannot be
+automatically resolved, it will be necessary to clone the branch, resolve the
+conflicts manually, and finish the update. To do this:
+
+1. Apply as many patches as possible `quilt push -a`.
+2. Once you hit a conflict, force apply with `quilt push -f`, manually add back
+   the rejected code, then run `quilt refresh`.
+3. Once all patches have been resolved, run `./ci/build/update.sh` to finish the
+   update process.
+4. Commit all changes, push them up to the branch, and update the checklist in
+   the PR description.
+
+Once the PR is ready, manually verify that the unreleased changelog section
+contains all the changes going into this version before merging.
 
 ### Patching Code
 
@@ -122,7 +124,7 @@ commits first if you are doing this).
 
 ### Build
 
-You can build a full production as follows:
+You can build a full production release as follows:
 
 ```shell
 git submodule update --init
@@ -130,26 +132,32 @@ quilt push -a
 npm install
 npm run build
 VERSION=0.0.0 npm run build:vscode
-npm run release
+KEEP_MODULES=1 npm run release
 ```
 
-This does not keep `node_modules`. If you want them to be kept, use
-`KEEP_MODULES=1 npm run release`
+You can omit `KEEP_MODULES` if you intend to use this in a platform-agnostic way
+(like for publishing to NPM), but since the VS Code build process does
+post-processing deletion of the modules, it is recommended to keep the modules
+when possible, since if you install them later you will have more than is
+required. `KEEP_MODULES` will also bundle Node and the code-server entry script.
 
 Run your build:
 
 ```shell
+./release/bin/code-server
+```
+
+Or if you omitted `KEEP_MODULES`:
+
+```shell
 cd release
-npm install --omit=dev # Skip if you used KEEP_MODULES=1
-# Runs the built JavaScript with Node.
+npm install --omit=dev
 node .
 ```
 
-Then, to build the release package:
+Then, to package the release:
 
 ```shell
-npm run release:standalone
-npm run test:integration
 npm run package
 ```
 
@@ -157,22 +165,6 @@ npm run package
 > version. In our GitHub Actions CI, we use CentOS 8 for maximum compatibility.
 > If you need your builds to support older distros, run the build commands
 > inside a Docker container with all the build requirements installed.
-
-#### Creating a Standalone Release
-
-Part of the build process involves creating standalone releases. At the time of
-writing, we do this for the following platforms/architectures:
-
-- Linux amd64 (.tar.gz, .deb, and .rpm)
-- Linux arm64 (.tar.gz, .deb, and .rpm)
-- Linux arm7l (.tar.gz)
-- Linux armhf.deb
-- Linux armhf.rpm
-- macOS arm64.tar.gz
-
-Currently, these are compiled in CI using the `npm run release:standalone`
-command in the `release.yaml` workflow. We then upload them to the draft release
-and distribute via GitHub Releases.
 
 ### Troubleshooting
 

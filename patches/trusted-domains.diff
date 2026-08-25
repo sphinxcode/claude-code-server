@@ -12,7 +12,7 @@ Index: code-server/lib/vscode/src/vs/server/node/serverEnvironmentService.ts
  
  	/* ----- server setup ----- */
  
-@@ -115,6 +116,7 @@ export interface ServerParsedArgs {
+@@ -122,6 +123,7 @@ export interface ServerParsedArgs {
  	'disable-file-uploads'?: boolean;
  	'disable-getting-started-override'?: boolean,
  	'locale'?: string
@@ -24,7 +24,7 @@ Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/server/node/webClientServer.ts
 +++ code-server/lib/vscode/src/vs/server/node/webClientServer.ts
-@@ -338,6 +338,14 @@ export class WebClientServer {
+@@ -355,6 +355,14 @@ export class WebClientServer {
  			scopes: [['user:email'], ['repo']]
  		} : undefined;
  
@@ -39,11 +39,11 @@ Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
  		const productConfiguration: Partial<Mutable<IProductConfiguration>> = {
  			codeServerVersion: this._productService.codeServerVersion,
  			rootEndpoint: rootBase,
-@@ -352,6 +360,7 @@ export class WebClientServer {
- 			telemetryEndpoint: this._productService.telemetryEndpoint,
+@@ -370,6 +378,7 @@ export class WebClientServer {
  			embedderIdentifier: 'server-distro',
+ 			voiceWsUrl: this._productService.voiceWsUrl,
  			extensionsGallery: this._productService.extensionsGallery,
 +			linkProtectionTrustedDomains,
  		};
  
- 		const proposedApi = this._environmentService.args['enable-proposed-api'];
+ 		if (!this._environmentService.isBuilt) {

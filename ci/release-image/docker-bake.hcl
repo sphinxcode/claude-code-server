@@ -16,9 +16,11 @@ variable "GITHUB_REGISTRY" {
 
 group "default" {
     targets = [
+        "code-server-debian-13",
         "code-server-debian-12",
         "code-server-ubuntu-focal",
         "code-server-ubuntu-noble",
+        "code-server-ubuntu-resolute",
         "code-server-fedora-39",
         "code-server-opensuse-tumbleweed",
     ]
@@ -48,20 +50,30 @@ function "gen_tags_for_docker_and_ghcr" {
     )
 }
 
-target "code-server-debian-12" {
+target "code-server-debian-13" {
     dockerfile = "ci/release-image/Dockerfile"
     tags = concat(
         gen_tags_for_docker_and_ghcr(""),
         gen_tags_for_docker_and_ghcr("debian"),
+        gen_tags_for_docker_and_ghcr("trixie"),
+    )
+    platforms = ["linux/amd64", "linux/arm64"]
+}
+
+target "code-server-debian-12" {
+    dockerfile = "ci/release-image/Dockerfile"
+    tags = concat(
         gen_tags_for_docker_and_ghcr("bookworm"),
     )
+    args = {
+        BASE = "debian:12"
+    }
     platforms = ["linux/amd64", "linux/arm64"]
 }
 
 target "code-server-ubuntu-focal" {
     dockerfile = "ci/release-image/Dockerfile"
     tags = concat(
-        gen_tags_for_docker_and_ghcr("ubuntu"),
         gen_tags_for_docker_and_ghcr("focal"),
     )
     args = {
@@ -74,9 +86,21 @@ target "code-server-ubuntu-noble" {
     dockerfile = "ci/release-image/Dockerfile"
     tags = concat(
         gen_tags_for_docker_and_ghcr("noble"),
+        gen_tags_for_docker_and_ghcr("ubuntu"),
     )
     args = {
         BASE = "ubuntu:noble"
+    }
+    platforms = ["linux/amd64", "linux/arm64"]
+}
+
+target "code-server-ubuntu-resolute" {
+    dockerfile = "ci/release-image/Dockerfile"
+    tags = concat(
+        gen_tags_for_docker_and_ghcr("resolute"),
+    )
+    args = {
+        BASE = "ubuntu:resolute"
     }
     platforms = ["linux/amd64", "linux/arm64"]
 }

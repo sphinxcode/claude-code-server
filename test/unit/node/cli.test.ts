@@ -38,6 +38,7 @@ const defaults = {
   "extensions-dir": path.join(paths.data, "extensions"),
   "user-data-dir": paths.data,
   "session-socket": path.join(paths.data, "code-server-ipc.sock"),
+  "app-name": "code-server",
   _: [],
 }
 
@@ -47,8 +48,10 @@ describe("parser", () => {
     delete process.env.PASSWORD
     delete process.env.CS_DISABLE_FILE_DOWNLOADS
     delete process.env.CS_DISABLE_GETTING_STARTED_OVERRIDE
+    delete process.env.CODE_SERVER_RECONNECTION_GRACE_TIME
     delete process.env.VSCODE_PROXY_URI
     delete process.env.CS_DISABLE_PROXY
+    delete process.env.VSCODE_OPTIONS
     console.log = jest.fn()
   })
 
@@ -114,6 +117,8 @@ describe("parser", () => {
 
           ["--session-socket", "/tmp/override-code-server-ipc-socket"],
 
+          ["--reconnection-grace-time", "86400"],
+
           ["--host", "0.0.0.0"],
           "4",
           "--",
@@ -150,6 +155,7 @@ describe("parser", () => {
       version: true,
       "bind-addr": "192.169.0.1:8080",
       "session-socket": "/tmp/override-code-server-ipc-socket",
+      "reconnection-grace-time": "86400",
       "abs-proxy-base-path": "/codeserver/app1",
       "skip-auth-preflight": true,
     })
@@ -408,6 +414,17 @@ describe("parser", () => {
     })
   })
 
+  it("should use env var VSCODE_OPTIONS", async () => {
+    process.env.VSCODE_OPTIONS = "--enable-sandbox agents=true"
+    const args = parse(["--vscode-option", "verbose-logging"])
+
+    const defaultArgs = await setDefaults(args)
+    expect(defaultArgs).toEqual({
+      ...defaults,
+      "vscode-option": ["verbose-logging", "--enable-sandbox", "agents=true"],
+    })
+  })
+
   it("should use env var CS_DISABLE_GETTING_STARTED_OVERRIDE", async () => {
     process.env.CS_DISABLE_GETTING_STARTED_OVERRIDE = "1"
     const args = parse([])
@@ -454,6 +471,19 @@ describe("parser", () => {
       ...defaults,
       "disable-proxy": true,
     })
+  })
+
+  it("should use env var CODE_SERVER_RECONNECTION_GRACE_TIME for reconnection grace time", async () => {
+    process.env.CODE_SERVER_RECONNECTION_GRACE_TIME = "86400"
+    const args = parse([])
+    expect(args).toEqual({})
+
+    const defaultArgs = await setDefaults(args)
+    expect(defaultArgs).toEqual({
+      ...defaults,
+      "reconnection-grace-time": "86400",
+    })
+    delete process.env.CODE_SERVER_RECONNECTION_GRACE_TIME
   })
 
   it("should error if password passed in", () => {
@@ -987,6 +1017,44 @@ describe("toCodeArgs", () => {
       ...vscodeDefaults,
       _: [file],
     })
+  })
+
+  it("should pass through --vscode-option", async () => {
+    const args = parse([
+      "--vscode-option",
+      "enable-sandbox",
+      "--vscode-option",
+      "agents=true",
+      "--vscode-option",
+      "enable-smoke-test-driver=false",
+    ])
+    expect(await toCodeArgs(await setDefaults(args))).toStrictEqual({
+      ...vscodeDefaults,
+      "enable-sandbox": true,
+      agents: true,
+      "enable-smoke-test-driver": false,
+    })
+  })
+
+  it("should collect a repeated --vscode-option into an array", async () => {
+    const args = parse([
+      "--vscode-option",
+      "locate-extension=a",
+      "--vscode-option",
+      "locate-extension=b",
+      "--vscode-option",
+      "locate-extension=c",
+    ])
+    expect(await toCodeArgs(await setDefaults(args))).toStrictEqual({
+      ...vscodeDefaults,
+      "locate-extension": ["a", "b", "c"],
+    })
+  })
+
+  it("should error if --vscode-option has no flag", async () => {
+    await expect(toCodeArgs(await setDefaults(parse(["--vscode-option", "=nothing"])))).rejects.toThrow(
+      "--vscode-option requires a flag name",
+    )
   })
 })
 

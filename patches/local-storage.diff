@@ -18,7 +18,7 @@ Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/server/node/webClientServer.ts
 +++ code-server/lib/vscode/src/vs/server/node/webClientServer.ts
-@@ -364,6 +364,7 @@ export class WebClientServer {
+@@ -376,6 +376,7 @@ export class WebClientServer {
  			remoteAuthority,
  			serverBasePath: basePath,
  			webviewEndpoint: staticRoute + '/out/vs/workbench/contrib/webview/browser/pre',
@@ -30,7 +30,7 @@ Index: code-server/lib/vscode/src/vs/workbench/browser/web.api.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/workbench/browser/web.api.ts
 +++ code-server/lib/vscode/src/vs/workbench/browser/web.api.ts
-@@ -298,6 +298,11 @@ export interface IWorkbenchConstructionO
+@@ -314,6 +314,11 @@ export interface IWorkbenchConstructionO
  	 */
  	readonly configurationDefaults?: Record<string, unknown>;
  
@@ -66,7 +66,7 @@ Index: code-server/lib/vscode/src/vs/workbench/services/configuration/browser/co
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/workbench/services/configuration/browser/configurationService.ts
 +++ code-server/lib/vscode/src/vs/workbench/services/configuration/browser/configurationService.ts
-@@ -147,8 +147,10 @@ export class WorkspaceService extends Di
+@@ -148,8 +148,10 @@ export class WorkspaceService extends Di
  		this.workspaceConfiguration = this._register(new WorkspaceConfiguration(configurationCache, fileService, uriIdentityService, logService));
  		this._register(this.workspaceConfiguration.onDidUpdateConfiguration(fromCache => {
  			this.onWorkspaceConfigurationChanged(fromCache).then(() => {
@@ -79,7 +79,7 @@ Index: code-server/lib/vscode/src/vs/workbench/services/configuration/browser/co
  			});
  		}));
  
-@@ -556,6 +558,12 @@ export class WorkspaceService extends Di
+@@ -561,6 +563,12 @@ export class WorkspaceService extends Di
  			previousFolders = this.workspace.folders;
  			this.workspace.update(workspace);
  		} else {

@@ -31,7 +31,7 @@ Index: code-server/lib/vscode/src/vs/workbench/api/node/extHostExtensionService.
  import { ExtHostDiskFileSystemProvider } from './extHostDiskFileSystemProvider.js';
  import nodeModule from 'node:module';
  import { assertType } from '../../../base/common/types.js';
-@@ -226,6 +228,52 @@ export class ExtHostExtensionService ext
+@@ -175,6 +177,52 @@ export class ExtHostExtensionService ext
  
  		performance.mark('code/extHost/didInitAPI');
  
@@ -94,7 +94,7 @@ Index: code-server/lib/vscode/src/vs/workbench/api/node/extensionHostProcess.ts
  
 +import * as _http from 'http';
  import minimist from 'minimist';
- import * as nativeWatchdog from 'native-watchdog';
+ import * as nativeWatchdog from '@vscode/native-watchdog';
  import * as net from 'net';
 @@ -469,7 +470,28 @@ async function startExtensionHostProcess
  	);

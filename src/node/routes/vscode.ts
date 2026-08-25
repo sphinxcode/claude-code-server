@@ -172,7 +172,6 @@ router.get("/", ensureVSCodeLoaded, async (req, res, next) => {
 })
 
 router.get("/manifest.json", async (req, res) => {
-  const appName = req.args["app-name"] || "code-server"
   res.writeHead(200, { "Content-Type": "application/manifest+json" })
 
   res.end(
@@ -180,8 +179,8 @@ router.get("/manifest.json", async (req, res) => {
       req,
       JSON.stringify(
         {
-          name: appName,
-          short_name: appName,
+          name: req.args["app-name"],
+          short_name: req.args["app-name"],
           start_url: ".",
           display: "fullscreen",
           display_override: ["window-controls-overlay"],
@@ -211,7 +210,7 @@ router.get("/manifest.json", async (req, res) => {
 })
 
 let mintKeyPromise: Promise<Buffer> | undefined
-router.post("/mint-key", async (req, res) => {
+router.post("/mint-key", ensureAuthenticated, async (req, res) => {
   if (!mintKeyPromise) {
     mintKeyPromise = new Promise(async (resolve) => {
       const keyPath = path.join(req.args["user-data-dir"], "serve-web-key-half")

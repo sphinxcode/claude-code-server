@@ -2,8 +2,6 @@
 .cache
 /out*/
 release/
-release-npm-package/
-release-standalone/
 release-packages/
 release-gcp/
 release-images/
@@ -13,6 +11,7 @@ node_modules
 .home
 coverage
 **/.DS_Store
+*.bak
 
 # Code packages itself here.
 /lib/vscode-reh-web-*

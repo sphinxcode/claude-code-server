@@ -8,7 +8,9 @@ metadata:
   annotations: {{- toYaml .Values.annotations | nindent 4 }}
   {{- end }}
 spec:
-  replicas: {{ .Values.replicaCount | default 1 }}
+  {{- if ne .Values.replicaCount nil }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
   strategy:
     type: Recreate
   selector:
@@ -123,14 +125,18 @@ spec:
               containerPort: {{ .port }}
               protocol: {{ .protocol }}
           {{- end }}
+          {{- if ne .Values.livenessProbe.enabled false }}
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
+          {{- end }}
+          {{- if ne .Values.readinessProbe.enabled false }}
           readinessProbe:
             httpGet:
               path: /healthz
               port: http
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

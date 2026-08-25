@@ -52,6 +52,7 @@ export interface UserProvidedCodeArgs {
   "disable-workspace-trust"?: boolean
   "disable-getting-started-override"?: boolean
   "disable-proxy"?: boolean
+  "reconnection-grace-time"?: string
   "session-socket"?: string
   "cookie-suffix"?: string
   "link-protection-trusted-domains"?: string[]
@@ -82,6 +83,7 @@ export interface UserProvidedArgs extends UserProvidedCodeArgs {
   open?: boolean
   "bind-addr"?: string
   socket?: string
+  "socket-fd"?: number
   "socket-mode"?: string
   "trusted-origins"?: string[]
   version?: boolean
@@ -96,6 +98,7 @@ export interface UserProvidedArgs extends UserProvidedCodeArgs {
   "abs-proxy-base-path"?: string
   i18n?: string
   "idle-timeout-seconds"?: number
+  "vscode-option"?: string[]
   /* Positional arguments. */
   _?: string[]
 }
@@ -234,6 +237,10 @@ export const options: Options<Required<UserProvidedArgs>> = {
   port: { type: "number", description: "" },
 
   socket: { type: "string", path: true, description: "Path to a socket (bind-addr will be ignored)." },
+  "socket-fd": {
+    type: "number",
+    description: "File descriptor of a pre-bound, listening socket to use (for systemd socket activation).",
+  },
   "socket-mode": { type: "string", description: "File mode of the socket." },
   "trusted-origins": {
     type: "string[]",
@@ -314,6 +321,19 @@ export const options: Options<Required<UserProvidedArgs>> = {
   "idle-timeout-seconds": {
     type: "number",
     description: "Timeout in seconds to wait before shutting down when idle.",
+  },
+  "reconnection-grace-time": {
+    type: "string",
+    description:
+      "Override the reconnection grace time in seconds. Clients who disconnect for longer than this duration will need to \n" +
+      "reload the window. Defaults to 10800 (3 hours).",
+  },
+  "vscode-option": {
+    type: "string[]",
+    description:
+      "Pass an option straight through to the VS Code server as flag=value, or as a bare flag for a \n" +
+      "boolean. Repeatable; repeating the same flag builds an array. Use this to reach VS Code options \n" +
+      "code-server does not model itself, e.g. --vscode-option enable-sandbox --vscode-option agents=true.",
   },
 }
 
@@ -519,6 +539,7 @@ export interface DefaultedArgs extends ConfigArgs {
   "extensions-dir": string
   "user-data-dir": string
   "session-socket": string
+  "app-name": string
   /* Positional arguments. */
   _: string[]
 }
@@ -631,6 +652,19 @@ export async function setDefaults(cliArgs: UserProvidedArgs, configArgs?: Config
     args["github-auth"] = process.env.GITHUB_TOKEN
   }
 
+  if (process.env.CODE_SERVER_RECONNECTION_GRACE_TIME) {
+    args["reconnection-grace-time"] = process.env.CODE_SERVER_RECONNECTION_GRACE_TIME
+  }
+
+  // Space-separated, like NODE_OPTIONS.  Appended to any flags rather than
+  // replacing them so the two can be combined.
+  if (process.env.VSCODE_OPTIONS) {
+    args["vscode-option"] = [
+      ...(args["vscode-option"] ?? []),
+      ...process.env.VSCODE_OPTIONS.split(/\s+/).filter((option) => option),
+    ]
+  }
+
   if (process.env.CODE_SERVER_IDLE_TIMEOUT_SECONDS) {
     if (isNaN(Number(process.env.CODE_SERVER_IDLE_TIMEOUT_SECONDS))) {
       logger.info("CODE_SERVER_IDLE_TIMEOUT_SECONDS must be a number")
@@ -664,6 +698,8 @@ export async function setDefaults(cliArgs: UserProvidedArgs, configArgs?: Config
     process.env.VSCODE_PROXY_URI = `//${finalProxies[0]}`
   }
   args["proxy-domain"] = finalProxies
+
+  args["app-name"] ??= process.env.CODE_SERVER_APP_NAME || "code-server"
 
   args._ = getResolvedPathsFromArgs(args)
 
@@ -896,16 +932,57 @@ export interface CodeArgs extends UserProvidedCodeArgs {
 }
 
 /**
+ * Expand --vscode-option entries into VS Code server arguments.
+ *
+ * An entry is `flag=value`, or a bare `flag` meaning true.  A leading `--` on
+ * the flag is optional, so both spellings people reach for work.  Repeating a
+ * flag collects the values into an array, since several VS Code options take
+ * one.
+ *
+ * `true` and `false` become booleans rather than strings.  VS Code tests these
+ * flags for truthiness and the string "false" is truthy, so passing it along
+ * verbatim would quietly do the opposite of what was asked.
+ */
+export const parseVscodeOptions = (entries: string[]): Record<string, string | boolean | string[]> => {
+  const parsed: Record<string, string | boolean | string[]> = {}
+
+  for (const entry of entries) {
+    const [flag, rawValue] = splitOnFirstEquals(entry.replace(/^--/, ""))
+    if (!flag) {
+      throw new Error(`--vscode-option requires a flag name (got "${entry}")`)
+    }
+
+    const value: string | boolean =
+      typeof rawValue === "undefined" || rawValue === "true" ? true : rawValue === "false" ? false : rawValue
+
+    const existing = parsed[flag]
+    if (typeof existing === "undefined") {
+      parsed[flag] = value
+    } else if (Array.isArray(existing)) {
+      existing.push(String(value))
+    } else {
+      parsed[flag] = [String(existing), String(value)]
+    }
+  }
+
+  return parsed
+}
+
+/**
  * Convert our arguments to equivalent VS Code server arguments.
  * Does not add any extra arguments.
  */
 export const toCodeArgs = async (args: DefaultedArgs): Promise<CodeArgs> => {
+  // The passthrough option is ours; VS Code has no idea what it is.
+  const { "vscode-option": vscodeOptions, ...rest } = args
   return {
-    ...args,
+    ...rest,
     /** Type casting. */
     help: !!args.help,
     version: !!args.version,
     port: args.port?.toString(),
     log: args.log ? [args.log] : undefined,
-  }
+    // Last, so that reaching an option code-server does model still works.
+    ...parseVscodeOptions(vscodeOptions ?? []),
+  } as CodeArgs
 }
